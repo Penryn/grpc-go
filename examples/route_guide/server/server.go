@@ -1,247 +1,245 @@
 /*
  *
- * Copyright 2015 gRPC authors.
+ * 版权所有 2015 gRPC 作者。
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * 根据 Apache 许可证，版本 2.0（“许可证”）授权；
+ * 除非遵守许可证，否则您不得使用此文件。
+ * 您可以在以下网址获取许可证副本：
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * 除非适用法律要求或书面同意，否则按“原样”分发的软件
+ * 是在不附带任何明示或暗示的担保或条件的情况下分发的。
+ * 请参阅许可证以了解管理权限和限制的特定语言。
  *
  */
 
-// Package main implements a simple gRPC server that demonstrates how to use gRPC-Go libraries
-// to perform unary, client streaming, server streaming and full duplex RPCs.
+// main 包实现了一个简单的 gRPC 服务器，演示如何使用 gRPC-Go 库
+// 执行一元、客户端流、服务器流和全双工 RPC。
 //
-// It implements the route guide service whose definition can be found in routeguide/route_guide.proto.
+// 它实现了 route guide 服务，其定义可以在 routeguide/route_guide.proto 中找到。
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"flag"
-	"fmt"
-	"io"
-	"log"
-	"math"
-	"net"
-	"os"
-	"sync"
-	"time"
+    "context"
+    "encoding/json"
+    "flag"
+    "fmt"
+    "io"
+    "log"
+    "math"
+    "net"
+    "os"
+    "sync"
+    "time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/examples/data"
-	"google.golang.org/protobuf/proto"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/credentials"
+    "google.golang.org/grpc/examples/data"
+    "google.golang.org/protobuf/proto"
 
-	pb "google.golang.org/grpc/examples/route_guide/routeguide"
+    pb "google.golang.org/grpc/examples/route_guide/routeguide"
 )
 
 var (
-	tls        = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	certFile   = flag.String("cert_file", "", "The TLS cert file")
-	keyFile    = flag.String("key_file", "", "The TLS key file")
-	jsonDBFile = flag.String("json_db_file", "", "A json file containing a list of features")
-	port       = flag.Int("port", 50051, "The server port")
+    tls        = flag.Bool("tls", false, "如果为 true，则连接使用 TLS，否则使用普通 TCP")
+    certFile   = flag.String("cert_file", "", "TLS 证书文件")
+    keyFile    = flag.String("key_file", "", "TLS 密钥文件")
+    jsonDBFile = flag.String("json_db_file", "", "包含特征列表的 JSON 文件")
+    port       = flag.Int("port", 50051, "服务器端口")
 )
 
 type routeGuideServer struct {
-	pb.UnimplementedRouteGuideServer
-	savedFeatures []*pb.Feature // read-only after initialized
+    pb.UnimplementedRouteGuideServer
+    savedFeatures []*pb.Feature // 初始化后只读
 
-	mu         sync.Mutex // protects routeNotes
-	routeNotes map[string][]*pb.RouteNote
+    mu         sync.Mutex // 保护 routeNotes
+    routeNotes map[string][]*pb.RouteNote
 }
 
-// GetFeature returns the feature at the given point.
-func (s *routeGuideServer) GetFeature(_ context.Context, point *pb.Point) (*pb.Feature, error) {
-	for _, feature := range s.savedFeatures {
-		if proto.Equal(feature.Location, point) {
-			return feature, nil
-		}
-	}
-	// No feature was found, return an unnamed feature
-	return &pb.Feature{Location: point}, nil
+// GetFeature 返回给定点的特征。
+func (s *routeGuideServer) GetFeature(ctx context.Context, point *pb.Point) (*pb.Feature, error) {
+    for _, feature := range s.savedFeatures {
+        if proto.Equal(feature.Location, point) {
+            return feature, nil
+        }
+    }
+    // 未找到特征，返回一个未命名的特征
+    return &pb.Feature{Location: point}, nil
 }
 
-// ListFeatures lists all features contained within the given bounding Rectangle.
+// ListFeatures 列出给定矩形范围内的所有特征。
 func (s *routeGuideServer) ListFeatures(rect *pb.Rectangle, stream pb.RouteGuide_ListFeaturesServer) error {
-	for _, feature := range s.savedFeatures {
-		if inRange(feature.Location, rect) {
-			if err := stream.Send(feature); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+    for _, feature := range s.savedFeatures {
+        if inRange(feature.Location, rect) {
+            if err := stream.Send(feature); err != nil {
+                return err
+            }
+        }
+    }
+    return nil
 }
 
-// RecordRoute records a route composited of a sequence of points.
+// RecordRoute 记录由一系列点组成的路线。
 //
-// It gets a stream of points, and responds with statistics about the "trip":
-// number of points,  number of known features visited, total distance traveled, and
-// total time spent.
+// 它接收一个点流，并响应关于“行程”的统计信息：
+// 点的数量、访问的已知特征的数量、行驶的总距离和
+// 花费的总时间。
 func (s *routeGuideServer) RecordRoute(stream pb.RouteGuide_RecordRouteServer) error {
-	var pointCount, featureCount, distance int32
-	var lastPoint *pb.Point
-	startTime := time.Now()
-	for {
-		point, err := stream.Recv()
-		if err == io.EOF {
-			endTime := time.Now()
-			return stream.SendAndClose(&pb.RouteSummary{
-				PointCount:   pointCount,
-				FeatureCount: featureCount,
-				Distance:     distance,
-				ElapsedTime:  int32(endTime.Sub(startTime).Seconds()),
-			})
-		}
-		if err != nil {
-			return err
-		}
-		pointCount++
-		for _, feature := range s.savedFeatures {
-			if proto.Equal(feature.Location, point) {
-				featureCount++
-			}
-		}
-		if lastPoint != nil {
-			distance += calcDistance(lastPoint, point)
-		}
-		lastPoint = point
-	}
+    var pointCount, featureCount, distance int32
+    var lastPoint *pb.Point
+    startTime := time.Now()
+    for {
+        point, err := stream.Recv()
+        if err == io.EOF {
+            endTime := time.Now()
+            return stream.SendAndClose(&pb.RouteSummary{
+                PointCount:   pointCount,
+                FeatureCount: featureCount,
+                Distance:     distance,
+                ElapsedTime:  int32(endTime.Sub(startTime).Seconds()),
+            })
+        }
+        if err != nil {
+            return err
+        }
+        pointCount++
+        for _, feature := range s.savedFeatures {
+            if proto.Equal(feature.Location, point) {
+                featureCount++
+            }
+        } 
+        if lastPoint != nil {
+            distance += calcDistance(lastPoint, point)
+        }
+        lastPoint = point
+    }
 }
 
-// RouteChat receives a stream of message/location pairs, and responds with a stream of all
-// previous messages at each of those locations.
+// RouteChat 接收一对消息/位置流，并响应每个位置的所有
+// 以前的消息流。
 func (s *routeGuideServer) RouteChat(stream pb.RouteGuide_RouteChatServer) error {
-	for {
-		in, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		key := serialize(in.Location)
+    for {
+        in, err := stream.Recv()
+        if err == io.EOF {
+            return nil
+        }
+        if err != nil {
+            return err
+        }
+        key := serialize(in.Location)
 
-		s.mu.Lock()
-		s.routeNotes[key] = append(s.routeNotes[key], in)
-		// Note: this copy prevents blocking other clients while serving this one.
-		// We don't need to do a deep copy, because elements in the slice are
-		// insert-only and never modified.
-		rn := make([]*pb.RouteNote, len(s.routeNotes[key]))
-		copy(rn, s.routeNotes[key])
-		s.mu.Unlock()
+        s.mu.Lock()
+        s.routeNotes[key] = append(s.routeNotes[key], in)
+        // 注意：此副本可防止在为此客户端服务时阻塞其他客户端。
+        // 我们不需要进行深拷贝，因为切片中的元素是
+        // 仅插入且从不修改。
+        rn := make([]*pb.RouteNote, len(s.routeNotes[key]))
+        copy(rn, s.routeNotes[key])
+        s.mu.Unlock()
 
-		for _, note := range rn {
-			if err := stream.Send(note); err != nil {
-				return err
-			}
-		}
-	}
+        for _, note := range rn {
+            if err := stream.Send(note); err != nil {
+                return err
+            }
+        }
+    }
 }
 
-// loadFeatures loads features from a JSON file.
+// loadFeatures 从 JSON 文件加载特征。
 func (s *routeGuideServer) loadFeatures(filePath string) {
-	var data []byte
-	if filePath != "" {
-		var err error
-		data, err = os.ReadFile(filePath)
-		if err != nil {
-			log.Fatalf("Failed to load default features: %v", err)
-		}
-	} else {
-		data = exampleData
-	}
-	if err := json.Unmarshal(data, &s.savedFeatures); err != nil {
-		log.Fatalf("Failed to load default features: %v", err)
-	}
+    var data []byte
+    if filePath != "" {
+        var err error
+        data, err = os.ReadFile(filePath)
+        if err != nil {
+            log.Fatalf("加载默认特征失败：%v", err)
+        }
+    } else {
+        data = exampleData
+    }
+    if err := json.Unmarshal(data, &s.savedFeatures); err != nil {
+        log.Fatalf("加载默认特征失败：%v", err)
+    }
 }
 
 func toRadians(num float64) float64 {
-	return num * math.Pi / float64(180)
+    return num * math.Pi / float64(180)
 }
 
-// calcDistance calculates the distance between two points using the "haversine" formula.
-// The formula is based on http://mathforum.org/library/drmath/view/51879.html.
+// calcDistance 使用“haversine”公式计算两点之间的距离。
+// 该公式基于 http://mathforum.org/library/drmath/view/51879.html。
 func calcDistance(p1 *pb.Point, p2 *pb.Point) int32 {
-	const CordFactor float64 = 1e7
-	const R = float64(6371000) // earth radius in metres
-	lat1 := toRadians(float64(p1.Latitude) / CordFactor)
-	lat2 := toRadians(float64(p2.Latitude) / CordFactor)
-	lng1 := toRadians(float64(p1.Longitude) / CordFactor)
-	lng2 := toRadians(float64(p2.Longitude) / CordFactor)
-	dlat := lat2 - lat1
-	dlng := lng2 - lng1
+    const CordFactor float64 = 1e7
+    const R = float64(6371000) // 地球半径（米）
+    lat1 := toRadians(float64(p1.Latitude) / CordFactor)
+    lat2 := toRadians(float64(p2.Latitude) / CordFactor)
+    lng1 := toRadians(float64(p1.Longitude) / CordFactor)
+    lng2 := toRadians(float64(p2.Longitude) / CordFactor)
+    dlat := lat2 - lat1
+    dlng := lng2 - lng1
 
-	a := math.Sin(dlat/2)*math.Sin(dlat/2) +
-		math.Cos(lat1)*math.Cos(lat2)*
-			math.Sin(dlng/2)*math.Sin(dlng/2)
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+    a := math.Sin(dlat/2)*math.Sin(dlat/2) +
+        math.Cos(lat1)*math.Cos(lat2)*
+            math.Sin(dlng/2)*math.Sin(dlng/2)
+    c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
-	distance := R * c
-	return int32(distance)
+    distance := R * c
+    return int32(distance)
 }
 
 func inRange(point *pb.Point, rect *pb.Rectangle) bool {
-	left := math.Min(float64(rect.Lo.Longitude), float64(rect.Hi.Longitude))
-	right := math.Max(float64(rect.Lo.Longitude), float64(rect.Hi.Longitude))
-	top := math.Max(float64(rect.Lo.Latitude), float64(rect.Hi.Latitude))
-	bottom := math.Min(float64(rect.Lo.Latitude), float64(rect.Hi.Latitude))
+    left := math.Min(float64(rect.Lo.Longitude), float64(rect.Hi.Longitude))
+    right := math.Max(float64(rect.Lo.Longitude), float64(rect.Hi.Longitude))
+    top := math.Max(float64(rect.Lo.Latitude), float64(rect.Hi.Latitude))
+    bottom := math.Min(float64(rect.Lo.Latitude), float64(rect.Hi.Latitude))
 
-	if float64(point.Longitude) >= left &&
-		float64(point.Longitude) <= right &&
-		float64(point.Latitude) >= bottom &&
-		float64(point.Latitude) <= top {
-		return true
-	}
-	return false
+    if float64(point.Longitude) >= left &&
+        float64(point.Longitude) <= right &&
+        float64(point.Latitude) >= bottom &&
+        float64(point.Latitude) <= top {
+        return true
+    }
+    return false
 }
 
 func serialize(point *pb.Point) string {
-	return fmt.Sprintf("%d %d", point.Latitude, point.Longitude)
+    return fmt.Sprintf("%d %d", point.Latitude, point.Longitude)
 }
 
 func newServer() *routeGuideServer {
-	s := &routeGuideServer{routeNotes: make(map[string][]*pb.RouteNote)}
-	s.loadFeatures(*jsonDBFile)
-	return s
+    s := &routeGuideServer{routeNotes: make(map[string][]*pb.RouteNote)}
+    s.loadFeatures(*jsonDBFile)
+    return s
 }
 
 func main() {
-	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	var opts []grpc.ServerOption
-	if *tls {
-		if *certFile == "" {
-			*certFile = data.Path("x509/server_cert.pem")
-		}
-		if *keyFile == "" {
-			*keyFile = data.Path("x509/server_key.pem")
-		}
-		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
-		if err != nil {
-			log.Fatalf("Failed to generate credentials: %v", err)
-		}
-		opts = []grpc.ServerOption{grpc.Creds(creds)}
-	}
-	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterRouteGuideServer(grpcServer, newServer())
-	grpcServer.Serve(lis)
+    flag.Parse()
+    lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
+    if err != nil {
+        log.Fatalf("监听失败：%v", err)
+    }
+    var opts []grpc.ServerOption
+    if *tls {
+        if *certFile == "" {
+            *certFile = data.Path("x509/server_cert.pem")
+        }
+        if *keyFile == "" {
+            *keyFile = data.Path("x509/server_key.pem")
+        }
+        creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
+        if err != nil {
+            log.Fatalf("生成凭证失败：%v", err)
+        }
+        opts = []grpc.ServerOption{grpc.Creds(creds)}
+    }
+    grpcServer := grpc.NewServer(opts...)
+    pb.RegisterRouteGuideServer(grpcServer, newServer())
+    grpcServer.Serve(lis)
 }
 
-// exampleData is a copy of testdata/route_guide_db.json. It's to avoid
-// specifying file path with `go run`.
+// exampleData 是 testdata/route_guide_db.json 的副本。它是为了避免
+// 使用 `go run` 指定文件路径。
 var exampleData = []byte(`[{
     "location": {
         "latitude": 407838351,

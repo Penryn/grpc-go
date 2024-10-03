@@ -72,9 +72,9 @@ func main() {
 		grpc.WithDefaultServiceConfig(serviceConfig),
 	}
 
-	conn, err := grpc.NewClient(address, options...)
+	conn, err := grpc.Dial(address, options...)
 	if err != nil {
-		log.Fatalf("grpc.NewClient(%q): %v", address, err)
+		log.Fatalf("grpc.Dial(%q): %v", address, err)
 	}
 	defer conn.Close()
 

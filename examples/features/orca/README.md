@@ -1,11 +1,8 @@
 # ORCA Load Reporting
 
-ORCA is a protocol for reporting load between servers and clients.  This
-example shows how to implement this from both the client and server side.  For
-more details, please see [gRFC
-A51](https://github.com/grpc/proposal/blob/master/A51-custom-backend-metrics.md)
+ORCA 是一种在服务器和客户端之间报告负载的协议。这个示例展示了如何从客户端和服务器端实现它。更多详情，请参见 [gRFC A51](https://github.com/grpc/proposal/blob/master/A51-custom-backend-metrics.md)。
 
-## Try it
+## 试一试
 
 ```
 go run server/main.go
@@ -15,34 +12,22 @@ go run server/main.go
 go run client/main.go
 ```
 
-## Explanation
+## 解释
 
-gRPC ORCA support provides two different ways to report load data to clients
-from servers: out-of-band and per-RPC.  Out-of-band metrics are reported
-regularly at some interval on a stream, while per-RPC metrics are reported
-along with the trailers at the end of a call.  Both of these mechanisms are
-optional and work independently.
+gRPC ORCA 支持提供了两种不同的方式从服务器向客户端报告负载数据：带外和每个 RPC。带外指标会在某个间隔定期通过流报告，而每个 RPC 指标会在调用结束时与尾随元数据一起报告。这两种机制都是可选的，并且独立工作。
 
-The full ORCA API documentation is available here:
+完整的 ORCA API 文档可在此处找到：
 https://pkg.go.dev/google.golang.org/grpc/orca
 
-### Out-of-band Metrics
+### 带外指标
 
-The server registers an ORCA service that is used for out-of-band metrics.  It
-does this by using `orca.Register()` and then setting metrics on the returned
-`orca.Service` using its methods.
+服务器注册一个 ORCA 服务用于带外指标。它通过使用 `orca.Register()` 并在返回的 `orca.Service` 上使用其方法设置指标来实现这一点。
 
-The client receives out-of-band metrics via the LB policy.  It receives
-callbacks to a listener by registering the listener on a `SubConn` via
-`orca.RegisterOOBListener`.
+客户端通过 LB 策略接收带外指标。它通过在 `SubConn` 上注册监听器来接收回调，使用 `orca.RegisterOOBListener`。
 
-### Per-RPC Metrics
+### 每个 RPC 指标
 
-The server is set up to report query cost metrics in its RPC handler.  For
-per-RPC metrics to be reported, the gRPC server must be created with the
-`orca.CallMetricsServerOption()` option, and metrics are set by calling methods
-on the returned `orca.CallMetricRecorder` from
-`orca.CallMetricRecorderFromContext()`.
+服务器设置在其 RPC 处理程序中报告查询成本指标。要报告每个 RPC 指标，必须使用 `orca.CallMetricsServerOption()` 选项创建 gRPC 服务器，并通过调用从 `orca.CallMetricRecorderFromContext()` 返回的 `orca.CallMetricRecorder` 的方法来设置指标。
 
-The client performs one RPC per second.  Per-RPC metrics are available for each
-call via the `Done()` callback returned from the LB policy's picker.
+客户端每秒执行一个 RPC。每个 RPC 指标可通过从 LB 策略的选择器返回的 `Done()` 回调获取。
+

@@ -34,14 +34,14 @@ import (
 
 var addr = flag.String("addr", "localhost:50052", "the address to connect to")
 
-var payload = string(make([]byte, 8*1024)) // 8KB
+var payload string = string(make([]byte, 8*1024)) // 8KB
 
 func main() {
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, err := grpc.NewClient(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}

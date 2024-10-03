@@ -1,35 +1,27 @@
 # gRPC xDS example
 
-xDS is the protocol initially used by Envoy, that is evolving into a universal
-data plan API for service mesh.
+xDS 是最初由 Envoy 使用的协议，正在演变为服务网格的通用数据平面 API。
 
-The xDS example is a Hello World client/server capable of being configured with
-the XDS management protocol. Out-of-the-box it behaves the same as [our other
-hello world
-example](https://github.com/grpc/grpc-go/tree/master/examples/helloworld). The
-server replies with responses including its hostname.
+xDS 示例是一个 Hello World 客户端/服务器，能够使用 XDS 管理协议进行配置。开箱即用，它的行为与[我们的其他 hello world 示例](https://github.com/grpc/grpc-go/tree/master/examples/helloworld)相同。服务器回复包含其主机名的响应。
 
-## xDS environment setup
+## xDS 环境设置
 
-This example doesn't include instructions to setup xDS environment. Please refer
-to documentation specific for your xDS management server. Examples will be added
-later.
+此示例不包括设置 xDS 环境的说明。请参考您的 xDS 管理服务器的特定文档。示例将稍后添加。
 
-The client also needs a bootstrap file. See [gRFC
-A27](https://github.com/grpc/proposal/blob/master/A27-xds-global-load-balancing.md#xdsclient-and-bootstrap-file)
-for the bootstrap format.
+客户端还需要一个引导文件。请参阅 [gRFC A27](https://github.com/grpc/proposal/blob/master/A27-xds-global-load-balancing.md#xdsclient-and-bootstrap-file) 了解引导文件格式。
 
-## The client
+## 客户端
 
-The client application needs to import the xDS package to install the resolver and balancers:
+客户端应用程序需要导入 xDS 包以安装解析器和负载均衡器：
 
 ```go
-_ "google.golang.org/grpc/xds" // To install the xds resolvers and balancers.
+_ "google.golang.org/grpc/xds" // 安装 xds 解析器和负载均衡器。
 ```
 
-Then, use `xds` target scheme for the ClientConn.
+然后，使用 `xds` 目标方案为 ClientConn。
 
 ```
 $ export GRPC_XDS_BOOTSTRAP=/path/to/bootstrap.json
 $ go run client/main.go "xDS world" xds:///target_service
 ```
+

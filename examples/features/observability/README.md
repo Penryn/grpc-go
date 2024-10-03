@@ -1,3 +1,4 @@
-This example is the Hello World example instrumented for logs, metrics, and tracing.
+这个示例是Hello World示例，用于检测日志、度量和跟踪。
 
-Please refer to Microservices Observability user guide for setup.
+请参考微服务可观测性用户指南进行设置。
+

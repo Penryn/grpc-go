@@ -1,11 +1,10 @@
 # Encryption
 
-The example for encryption includes three individual examples for TLS, ALTS
-and mTLS encryption mechanism respectively.
+示例中的加密部分包括 TLS 和 ALTS 两种加密机制的独立示例。
 
-## Try it
+## 试用
 
-In each example's subdirectory:
+在每个示例的子目录中：
 
 ```
 go run server/main.go
@@ -15,105 +14,68 @@ go run server/main.go
 go run client/main.go
 ```
 
-## Explanation
+## 解释
 
 ### TLS
 
-TLS is a commonly used cryptographic protocol to provide end-to-end
-communication security. In the example, we show how to set up a server
-authenticated TLS connection to transmit RPC.
+TLS 是一种常用的加密协议，用于提供端到端的通信安全。在示例中，我们展示了如何设置服务器认证的 TLS 连接来传输 RPC。
 
-In our `grpc/credentials` package, we provide several convenience methods to
-create grpc
-[`credentials.TransportCredentials`](https://godoc.org/google.golang.org/grpc/credentials#TransportCredentials)
-base on TLS. Refer to the
-[godoc](https://godoc.org/google.golang.org/grpc/credentials) for details.
+在我们的 `grpc/credentials` 包中，我们提供了几个方便的方法来基于 TLS 创建 grpc
+[`credentials.TransportCredentials`](https://godoc.org/google.golang.org/grpc/credentials#TransportCredentials)。
+详情请参考 [godoc](https://godoc.org/google.golang.org/grpc/credentials)。
 
-In our example, we use the public/private keys created ahead:
-* "server_cert.pem" contains the server certificate (public key).
-* "server_key.pem" contains the server private key.
-* "ca_cert.pem" contains the certificate (certificate authority)
-that can verify the server's certificate.
+在我们的示例中，我们使用了预先创建的公钥/私钥：
+* "server_cert.pem" 包含服务器证书（公钥）。
+* "server_key.pem" 包含服务器私钥。
+* "ca_cert.pem" 包含可以验证服务器证书的证书（证书颁发机构）。
 
-On server side, we provide the paths to "server_cert.pem" and "server_key.pem" to
-configure TLS and create the server credential using
-[`credentials.NewServerTLSFromFile`](https://godoc.org/google.golang.org/grpc/credentials#NewServerTLSFromFile).
+在服务器端，我们提供 "server.pem" 和 "server.key" 的路径来配置 TLS，并使用
+[`credentials.NewServerTLSFromFile`](https://godoc.org/google.golang.org/grpc/credentials#NewServerTLSFromFile)
+创建服务器凭证。
 
-On client side, we provide the path to the "ca_cert.pem" to configure TLS and create
-the client credential using
-[`credentials.NewClientTLSFromFile`](https://godoc.org/google.golang.org/grpc/credentials#NewClientTLSFromFile).
-Note that we override the server name with "x.test.example.com", as the server
-certificate is valid for *.test.example.com but not localhost. It is solely for
-the convenience of making an example.
+在客户端，我们提供 "ca_cert.pem" 的路径来配置 TLS，并使用
+[`credentials.NewClientTLSFromFile`](https://godoc.org/google.golang.org/grpc/credentials#NewClientTLSFromFile)
+创建客户端凭证。注意，我们将服务器名称覆盖为 "x.test.example.com"，因为服务器证书对 *.test.example.com 有效，但对 localhost 无效。这仅仅是为了方便示例。
 
-Once the credentials have been created at both sides, we can start the server
-with the just created server credential (by calling
-[`grpc.Creds`](https://godoc.org/google.golang.org/grpc#Creds)) and let client dial
-to the server with the created client credential (by calling
-[`grpc.WithTransportCredentials`](https://godoc.org/google.golang.org/grpc#WithTransportCredentials))
+一旦在两端创建了凭证，我们可以使用刚创建的服务器凭证启动服务器（通过调用
+[`grpc.Creds`](https://godoc.org/google.golang.org/grpc#Creds)），并让客户端使用创建的客户端凭证拨号到服务器（通过调用
+[`grpc.WithTransportCredentials`](https://godoc.org/google.golang.org/grpc#WithTransportCredentials)）。
 
-And finally we make an RPC call over the created `grpc.ClientConn` to test the secure
-connection based upon TLS is successfully up.
+最后，我们通过创建的 `grpc.ClientConn` 进行 RPC 调用，以测试基于 TLS 的安全连接是否成功建立。
 
 ### ALTS
-NOTE: ALTS currently needs special early access permission on GCP. You can ask
-about the detailed process in https://groups.google.com/forum/#!forum/grpc-io.
+注意：ALTS 目前需要在 GCP 上获得特殊的早期访问权限。您可以在 https://groups.google.com/forum/#!forum/grpc-io 中询问详细过程。
 
-ALTS is the Google's Application Layer Transport Security, which supports mutual
-authentication and transport encryption. Note that ALTS is currently only
-supported on Google Cloud Platform, and therefore you can only run the example
-successfully in a GCP environment. In our example, we show how to initiate a
-secure connection that is based on ALTS.
+ALTS 是 Google 的应用层传输安全协议，支持相互认证和传输加密。注意，ALTS 目前仅在 Google Cloud Platform 上支持，因此您只能在 GCP 环境中成功运行该示例。在我们的示例中，我们展示了如何启动基于 ALTS 的安全连接。
 
-Unlike TLS, ALTS makes certificate/key management transparent to user. So it is
-easier to set up.
+与 TLS 不同，ALTS 使证书/密钥管理对用户透明。因此，设置更为简单。
 
-On server side, first call
+在服务器端，首先调用
 [`alts.DefaultServerOptions`](https://godoc.org/google.golang.org/grpc/credentials/alts#DefaultServerOptions)
-to get the configuration for alts and then provide the configuration to
+获取 alts 的配置，然后将配置提供给
 [`alts.NewServerCreds`](https://godoc.org/google.golang.org/grpc/credentials/alts#NewServerCreds)
-to create the server credential based upon alts.
+以基于 alts 创建服务器凭证。
 
-On client side, first call
+在客户端，首先调用
 [`alts.DefaultClientOptions`](https://godoc.org/google.golang.org/grpc/credentials/alts#DefaultClientOptions)
-to get the configuration for alts and then provide the configuration to
+获取 alts 的配置，然后将配置提供给
 [`alts.NewClientCreds`](https://godoc.org/google.golang.org/grpc/credentials/alts#NewClientCreds)
-to create the client credential based upon alts.
+以基于 alts 创建客户端凭证。
 
-Next, same as TLS, start the server with the server credential and let client
-dial to server with the client credential.
+接下来，与 TLS 相同，使用服务器凭证启动服务器，并让客户端使用客户端凭证拨号到服务器。
 
-Finally, make an RPC to test the secure connection based upon ALTS is
-successfully up.
+最后，进行 RPC 调用，以测试基于 ALTS 的安全连接是否成功建立。
 
 ### mTLS
 
-In mutual TLS (mTLS), the client and the server authenticate each other. gRPC
-allows users to configure mutual TLS at the connection level.
+在双向 TLS（mTLS）中，客户端和服务器相互认证。gRPC 允许用户在连接级别配置双向 TLS。
 
-In this example, we use the following public/private keys created ahead of time:
-
-* "server_cert.pem" contains the server's certificate (public key).
-* "server_key.pem" contains the server's private key.
-* "ca_cert.pem" contains the certificate of the certificate authority that can
-  verify the server's certificate.
-* "client_cert.pem" contains the client's certificate (public key).
-* "client_key.pem" contains the client's private key.
-* "client_ca_cert.pem" contains the certificate of the certificate authority
-  that can verify the client's certificate.
-
-In normal TLS, the server is only concerned with presenting the server
-certificate for clients to verify. In mutual TLS, the server also loads in a
-list of trusted CA files for verifying the client's presented certificates.
-This is done by setting
+在普通 TLS 中，服务器只需向客户端展示服务器证书以供验证。在双向 TLS 中，服务器还会加载一组受信任的 CA 文件列表，以验证客户端提供的证书。这是通过设置
 [`tls.Config.ClientCAs`](https://pkg.go.dev/crypto/tls#Config.ClientCAs)
-to the list of trusted CA files,
-and setting
+为受信任的 CA 文件列表，并设置
 [`tls.config.ClientAuth`](https://pkg.go.dev/crypto/tls#Config.ClientAuth)
-to
-[`tls.RequireAndVerifyClientCert`](https://pkg.go.dev/crypto/tls#RequireAndVerifyClientCert).
+为 [`tls.RequireAndVerifyClientCert`](https://pkg.go.dev/crypto/tls#RequireAndVerifyClientCert) 来完成的。
 
-In normal TLS, the client is only concerned with authenticating the server by
-using one or more trusted CA file. In mutual TLS, the client also presents its
-client certificate to the server for authentication. This is done by setting
-[`tls.Config.Certificates`](https://pkg.go.dev/crypto/tls#Config.Certificates).
+在普通 TLS 中，客户端只需通过一个或多个受信任的 CA 文件来验证服务器。在双向 TLS 中，客户端还会向服务器展示其客户端证书以供认证。这是通过设置
+[`tls.Config.Certificates`](https://pkg.go.dev/crypto/tls#Config.Certificates) 来完成的。
+

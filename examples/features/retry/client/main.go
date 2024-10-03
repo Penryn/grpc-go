@@ -36,6 +36,7 @@ var (
 	retryPolicy = `{
 		"methodConfig": [{
 		  "name": [{"service": "grpc.examples.echo.Echo"}],
+		  "waitForReady": true,
 		  "retryPolicy": {
 			  "MaxAttempts": 4,
 			  "InitialBackoff": ".01s",
@@ -46,14 +47,16 @@ var (
 		}]}`
 )
 
+// use grpc.WithDefaultServiceConfig() to set service config
+func retryDial() (*grpc.ClientConn, error) {
+	return grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultServiceConfig(retryPolicy))
+}
+
 func main() {
 	flag.Parse()
 
-	// Set up a connection to the server with service config and create the channel.
-	// However, the recommended approach is to fetch the retry configuration
-	// (which is part of the service config) from the name resolver rather than
-	// defining it on the client side.
-	conn, err := grpc.NewClient(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultServiceConfig(retryPolicy))
+	// Set up a connection to the server.
+	conn, err := retryDial()
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}

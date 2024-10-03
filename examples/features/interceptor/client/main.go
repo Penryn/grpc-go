@@ -153,13 +153,13 @@ func main() {
 	}
 
 	// Set up a connection to the server.
-	conn, err := grpc.NewClient(*addr, grpc.WithTransportCredentials(creds), grpc.WithUnaryInterceptor(unaryInterceptor), grpc.WithStreamInterceptor(streamInterceptor))
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(creds), grpc.WithUnaryInterceptor(unaryInterceptor), grpc.WithStreamInterceptor(streamInterceptor))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
 
-	// Make an echo client and send RPCs.
+	// Make a echo client and send RPCs.
 	rgc := ecpb.NewEchoClient(conn)
 	callUnaryEcho(rgc, "hello world")
 	callBidiStreamingEcho(rgc)

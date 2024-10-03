@@ -1,17 +1,8 @@
 # Flow Control
 
-Flow control is a feature in gRPC that prevents senders from writing more data
-on a stream than a receiver is capable of handling.  This feature behaves the
-same for both clients and servers.  Because gRPC-Go uses a blocking-style API
-for stream operations, flow control pushback is implemented by simply blocking
-send operations on a stream when that stream's flow control limits have been
-reached.  When the receiver has read enough data from the stream, the send
-operation will unblock automatically.  Flow control is configured automatically
-based on a connection's Bandwidth Delay Product (BDP) to ensure the buffer is
-the minimum size necessary to allow for maximum throughput on the stream if the
-receiver is reading at its maximum speed.
+流控是 gRPC 中的一项功能，它可以防止发送方在接收方无法处理的情况下向流中写入更多数据。此功能对客户端和服务器端的行为是相同的。由于 gRPC-Go 使用阻塞式 API 进行流操作，流控的回推通过在达到流控限制时简单地阻塞流上的发送操作来实现。当接收方从流中读取了足够的数据后，发送操作将自动解除阻塞。流控会根据连接的带宽延迟积（BDP）自动配置，以确保缓冲区的大小是允许流在接收方以最大速度读取时实现最大吞吐量所需的最小大小。
 
-## Try it
+## 试一试
 
 ```
 go run ./server
@@ -21,35 +12,28 @@ go run ./server
 go run ./client
 ```
 
-## Example explanation
+## 示例说明
 
-The example client and server are written to demonstrate the blocking by
-intentionally sending messages while the other side is not receiving.  The
-bidirectional echo stream in the example begins by having the client send
-messages until it detects it has blocked (utilizing another goroutine).  The
-server sleeps for 2 seconds to allow this to occur.  Then the server will read
-all of these messages, and the roles of the client and server are swapped so the
-server attempts to send continuously while the client sleeps.  After the client
-sleeps for 2 seconds, it will read again to unblock the server.  The server will
-detect that it has blocked, and end the stream once it has unblocked.
+示例客户端和服务器的编写是为了通过在另一方未接收消息时故意发送消息来演示阻塞。示例中的双向回显流首先让客户端发送消息，直到检测到它已被阻塞（利用另一个 goroutine）。服务器会休眠 2 秒以允许这种情况发生。然后服务器将读取所有这些消息，并交换客户端和服务器的角色，使服务器在客户端休眠时尝试连续发送。客户端休眠 2 秒后，将再次读取以解除服务器的阻塞。服务器将检测到它已被阻塞，并在解除阻塞后结束流。
 
-### Expected Output
+### 预期输出
 
-The client output should look like:
+客户端输出应如下所示：
 ```
-2023/09/19 15:49:49 New stream began.
-2023/09/19 15:49:50 Sending is blocked.
-2023/09/19 15:49:51 Sent 25 messages.
-2023/09/19 15:49:53 Read 25 messages.
-2023/09/19 15:49:53 Stream ended successfully.
+2023/09/19 15:49:49 新流开始。
+2023/09/19 15:49:50 发送被阻塞。
+2023/09/19 15:49:51 发送了 25 条消息。
+2023/09/19 15:49:53 读取了 25 条消息。
+2023/09/19 15:49:53 流成功结束。
 ```
 
-while the server should output the following logs:
+而服务器应输出以下日志：
 
 ```
-2023/09/19 15:49:49 New stream began.
-2023/09/19 15:49:51 Read 25 messages.
-2023/09/19 15:49:52 Sending is blocked.
-2023/09/19 15:49:53 Sent 25 messages.
-2023/09/19 15:49:53 Stream ended successfully.
+2023/09/19 15:49:49 新流开始。
+2023/09/19 15:49:51 读取了 25 条消息。
+2023/09/19 15:49:52 发送被阻塞。
+2023/09/19 15:49:53 发送了 25 条消息。
+2023/09/19 15:49:53 流成功结束。
 ```
+

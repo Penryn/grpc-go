@@ -1,25 +1,23 @@
 /*
  *
- * Copyright 2015 gRPC authors.
+ * 版权所有 2015 gRPC 作者。
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * 根据 Apache 许可证 2.0 版（“许可证”）许可；
+ * 除非遵守许可证，否则您不得使用此文件。
+ * 您可以在以下网址获取许可证副本：
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * 除非适用法律要求或书面同意，否则按“原样”分发的许可证软件
+ * 没有任何明示或暗示的担保或条件。
+ * 请参阅许可证以了解管理权限和限制的特定语言。
  *
  */
 
-// Package main implements a simple gRPC client that demonstrates how to use gRPC-Go libraries
-// to perform unary, client streaming, server streaming and full duplex RPCs.
+// main 包实现了一个简单的 gRPC 客户端，演示如何使用 gRPC-Go 库
+// 执行一元、客户端流、服务器流和全双工 RPC。
 //
-// It interacts with the route guide service whose definition can be found in routeguide/route_guide.proto.
+// 它与 route guide 服务交互，其定义可以在 routeguide/route_guide.proto 中找到。
 package main
 
 import (
@@ -38,32 +36,32 @@ import (
 )
 
 var (
-	tls                = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	caFile             = flag.String("ca_file", "", "The file containing the CA root cert file")
-	serverAddr         = flag.String("addr", "localhost:50051", "The server address in the format of host:port")
-	serverHostOverride = flag.String("server_host_override", "x.test.example.com", "The server name used to verify the hostname returned by the TLS handshake")
+	tls                = flag.Bool("tls", false, "如果为 true，则使用 TLS 连接，否则使用普通 TCP")
+	caFile             = flag.String("ca_file", "", "包含 CA 根证书文件的文件")
+	serverAddr         = flag.String("addr", "localhost:50051", "服务器地址，格式为 host:port")
+	serverHostOverride = flag.String("server_host_override", "x.test.example.com", "用于验证 TLS 握手返回的主机名的服务器名称")
 )
 
-// printFeature gets the feature for the given point.
+// printFeature 获取给定点的特征。
 func printFeature(client pb.RouteGuideClient, point *pb.Point) {
-	log.Printf("Getting feature for point (%d, %d)", point.Latitude, point.Longitude)
+	log.Printf("获取点 (%d, %d) 的特征", point.Latitude, point.Longitude)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	feature, err := client.GetFeature(ctx, point)
 	if err != nil {
-		log.Fatalf("client.GetFeature failed: %v", err)
+		log.Fatalf("client.GetFeature 失败: %v", err)
 	}
 	log.Println(feature)
 }
 
-// printFeatures lists all the features within the given bounding Rectangle.
+// printFeatures 列出给定矩形范围内的所有特征。
 func printFeatures(client pb.RouteGuideClient, rect *pb.Rectangle) {
-	log.Printf("Looking for features within %v", rect)
+	log.Printf("查找 %v 范围内的特征", rect)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	stream, err := client.ListFeatures(ctx, rect)
 	if err != nil {
-		log.Fatalf("client.ListFeatures failed: %v", err)
+		log.Fatalf("client.ListFeatures 失败: %v", err)
 	}
 	for {
 		feature, err := stream.Recv()
@@ -71,75 +69,75 @@ func printFeatures(client pb.RouteGuideClient, rect *pb.Rectangle) {
 			break
 		}
 		if err != nil {
-			log.Fatalf("client.ListFeatures failed: %v", err)
+			log.Fatalf("client.ListFeatures 失败: %v", err)
 		}
-		log.Printf("Feature: name: %q, point:(%v, %v)", feature.GetName(),
+		log.Printf("特征: 名称: %q, 点:(%v, %v)", feature.GetName(),
 			feature.GetLocation().GetLatitude(), feature.GetLocation().GetLongitude())
 	}
 }
 
-// runRecordRoute sends a sequence of points to server and expects to get a RouteSummary from server.
+// runRecordRoute 发送一系列点到服务器，并期望从服务器获得 RouteSummary。
 func runRecordRoute(client pb.RouteGuideClient) {
-	// Create a random number of random points
+	// 创建随机数量的随机点
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	pointCount := int(r.Int31n(100)) + 2 // Traverse at least two points
+	pointCount := int(r.Int31n(100)) + 2 // 至少遍历两个点
 	var points []*pb.Point
 	for i := 0; i < pointCount; i++ {
 		points = append(points, randomPoint(r))
 	}
-	log.Printf("Traversing %d points.", len(points))
+	log.Printf("遍历 %d 个点。", len(points))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	stream, err := client.RecordRoute(ctx)
 	if err != nil {
-		log.Fatalf("client.RecordRoute failed: %v", err)
+		log.Fatalf("client.RecordRoute 失败: %v", err)
 	}
 	for _, point := range points {
 		if err := stream.Send(point); err != nil {
-			log.Fatalf("client.RecordRoute: stream.Send(%v) failed: %v", point, err)
+			log.Fatalf("client.RecordRoute: stream.Send(%v) 失败: %v", point, err)
 		}
 	}
 	reply, err := stream.CloseAndRecv()
 	if err != nil {
-		log.Fatalf("client.RecordRoute failed: %v", err)
+		log.Fatalf("client.RecordRoute 失败: %v", err)
 	}
-	log.Printf("Route summary: %v", reply)
+	log.Printf("路线总结: %v", reply)
 }
 
-// runRouteChat receives a sequence of route notes, while sending notes for various locations.
+// runRouteChat 在发送各种位置的笔记时接收一系列路线笔记。
 func runRouteChat(client pb.RouteGuideClient) {
 	notes := []*pb.RouteNote{
-		{Location: &pb.Point{Latitude: 0, Longitude: 1}, Message: "First message"},
-		{Location: &pb.Point{Latitude: 0, Longitude: 2}, Message: "Second message"},
-		{Location: &pb.Point{Latitude: 0, Longitude: 3}, Message: "Third message"},
-		{Location: &pb.Point{Latitude: 0, Longitude: 1}, Message: "Fourth message"},
-		{Location: &pb.Point{Latitude: 0, Longitude: 2}, Message: "Fifth message"},
-		{Location: &pb.Point{Latitude: 0, Longitude: 3}, Message: "Sixth message"},
+		{Location: &pb.Point{Latitude: 0, Longitude: 1}, Message: "第一条消息"},
+		{Location: &pb.Point{Latitude: 0, Longitude: 2}, Message: "第二条消息"},
+		{Location: &pb.Point{Latitude: 0, Longitude: 3}, Message: "第三条消息"},
+		{Location: &pb.Point{Latitude: 0, Longitude: 1}, Message: "第四条消息"},
+		{Location: &pb.Point{Latitude: 0, Longitude: 2}, Message: "第五条消息"},
+		{Location: &pb.Point{Latitude: 0, Longitude: 3}, Message: "第六条消息"},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	stream, err := client.RouteChat(ctx)
 	if err != nil {
-		log.Fatalf("client.RouteChat failed: %v", err)
+		log.Fatalf("client.RouteChat 失败: %v", err)
 	}
 	waitc := make(chan struct{})
 	go func() {
 		for {
 			in, err := stream.Recv()
 			if err == io.EOF {
-				// read done.
+				// 读取完成。
 				close(waitc)
 				return
 			}
 			if err != nil {
-				log.Fatalf("client.RouteChat failed: %v", err)
+				log.Fatalf("client.RouteChat 失败: %v", err)
 			}
-			log.Printf("Got message %s at point(%d, %d)", in.Message, in.Location.Latitude, in.Location.Longitude)
+			log.Printf("在点(%d, %d)收到消息 %s", in.Location.Latitude, in.Location.Longitude, in.Message)
 		}
 	}()
 	for _, note := range notes {
 		if err := stream.Send(note); err != nil {
-			log.Fatalf("client.RouteChat: stream.Send(%v) failed: %v", note, err)
+			log.Fatalf("client.RouteChat: stream.Send(%v) 失败: %v", note, err)
 		}
 	}
 	stream.CloseSend()
@@ -161,35 +159,35 @@ func main() {
 		}
 		creds, err := credentials.NewClientTLSFromFile(*caFile, *serverHostOverride)
 		if err != nil {
-			log.Fatalf("Failed to create TLS credentials: %v", err)
+			log.Fatalf("创建 TLS 凭证失败: %v", err)
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.NewClient(*serverAddr, opts...)
+	conn, err := grpc.Dial(*serverAddr, opts...)
 	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
+		log.Fatalf("拨号失败: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewRouteGuideClient(conn)
 
-	// Looking for a valid feature
+	// 查找有效特征
 	printFeature(client, &pb.Point{Latitude: 409146138, Longitude: -746188906})
 
-	// Feature missing.
+	// 特征缺失。
 	printFeature(client, &pb.Point{Latitude: 0, Longitude: 0})
 
-	// Looking for features between 40, -75 and 42, -73.
+	// 查找 40, -75 和 42, -73 之间的特征。
 	printFeatures(client, &pb.Rectangle{
 		Lo: &pb.Point{Latitude: 400000000, Longitude: -750000000},
 		Hi: &pb.Point{Latitude: 420000000, Longitude: -730000000},
 	})
 
-	// RecordRoute
+	// 记录路线
 	runRecordRoute(client)
 
-	// RouteChat
+	// 路线聊天
 	runRouteChat(client)
 }

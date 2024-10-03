@@ -1,34 +1,31 @@
 # Description
-The route guide server and client demonstrate how to use grpc go libraries to
-perform unary, client streaming, server streaming and full duplex RPCs.
+路由指南服务器和客户端演示了如何使用 gRPC Go 库来执行一元、客户端流、服务器流和全双工 RPC。
 
-Please refer to [gRPC Basics: Go](https://grpc.io/docs/tutorials/basic/go.html) for more information.
+请参阅 [gRPC 基础：Go](https://grpc.io/docs/tutorials/basic/go.html) 以获取更多信息。
 
-See the definition of the route guide service in `routeguide/route_guide.proto`.
+请参阅 `routeguide/route_guide.proto` 中的路由指南服务定义。
 
-# Run the sample code
-To compile and run the server, assuming you are in the root of the `route_guide`
-folder, i.e., `.../examples/route_guide/`, simply:
+# 运行示例代码
+要编译和运行服务器，假设您在 `route_guide` 文件夹的根目录下，即 `.../examples/route_guide/`，只需：
 
 ```sh
 $ go run server/server.go
 ```
 
-Likewise, to run the client:
+同样，要运行客户端：
 
 ```sh
 $ go run client/client.go
 ```
 
-# Optional command line flags
-The server and client both take optional command line flags. For example, the
-client and server run without TLS by default. To enable TLS:
+# 可选命令行标志
+服务器和客户端都接受可选的命令行标志。例如，客户端和服务器默认情况下不启用 TLS。要启用 TLS：
 
 ```sh
 $ go run server/server.go -tls=true
 ```
 
-and
+以及
 
 ```sh
 $ go run client/client.go -tls=true

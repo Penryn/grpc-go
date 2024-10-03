@@ -1,15 +1,12 @@
 # Unix abstract sockets
 
-This examples shows how to start a gRPC server listening on a unix abstract
-socket and how to get a gRPC client to connect to it.
+这个示例展示了如何启动一个监听在 Unix 抽象套接字上的 gRPC 服务器，以及如何让 gRPC 客户端连接到它。
 
-## What is a unix abstract socket
+## 什么是 Unix 抽象套接字
 
-An abstract socket address is distinguished from a regular unix socket by the
-fact that the first byte of the address is a null byte ('\0'). The address has
-no connection with filesystem path names.
+抽象套接字地址与常规 Unix 套接字的区别在于地址的第一个字节是一个空字节 ('\0')。该地址与文件系统路径名没有关联。
 
-## Try it
+## 试一试
 
 ```
 go run server/main.go
@@ -19,11 +16,7 @@ go run server/main.go
 go run client/main.go
 ```
 
-## Explanation
+## 解释
 
-The gRPC server in this example listens on an address starting with a null byte
-and the network is `unix`. The client uses the `unix-abstract` scheme with the
-endpoint set to the abstract unix socket address without the null byte. The
-`unix` resolver takes care of adding the null byte on the client. See
-https://github.com/grpc/grpc/blob/master/doc/naming.md for the more details.
+这个示例中的 gRPC 服务器监听一个以空字节开头的地址，网络类型是 `unix`。客户端使用 `unix-abstract` 方案，端点设置为不带空字节的抽象 Unix 套接字地址。`unix` 解析器负责在客户端添加空字节。更多详情请参见 https://github.com/grpc/grpc/blob/master/doc/naming.md。
 

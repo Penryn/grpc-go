@@ -1,20 +1,17 @@
-// Copyright 2015 gRPC authors.
+// 版权所有 2015 gRPC 作者。
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// 根据 Apache 许可证 2.0 版（“许可证”）许可；
+// 除非遵守许可证，否则您不得使用此文件。
+// 您可以在以下网址获取许可证副本：
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// 除非适用法律要求或书面同意，否则按“原样”分发的软件
+// 不提供任何明示或暗示的担保或条件。
+// 请参阅许可证了解管理权限和限制的具体语言。
 
-edition = "2023";
+syntax = "proto3";
 
-option features.field_presence = IMPLICIT;
 option go_package = "google.golang.org/grpc/examples/route_guide/routeguide";
 option java_multiple_files = true;
 option java_package = "io.grpc.examples.routeguide";
@@ -22,91 +19,87 @@ option java_outer_classname = "RouteGuideProto";
 
 package routeguide;
 
-// Interface exported by the server.
+// 服务器导出的接口。
 service RouteGuide {
-  // A simple RPC.
+  // 一个简单的 RPC。
   //
-  // Obtains the feature at a given position.
+  // 获取给定位置的特征。
   //
-  // A feature with an empty name is returned if there's no feature at the given
-  // position.
+  // 如果给定位置没有特征，则返回一个名称为空的特征。
   rpc GetFeature(Point) returns (Feature) {}
 
-  // A server-to-client streaming RPC.
+  // 服务器到客户端的流式 RPC。
   //
-  // Obtains the Features available within the given Rectangle.  Results are
-  // streamed rather than returned at once (e.g. in a response message with a
-  // repeated field), as the rectangle may cover a large area and contain a
-  // huge number of features.
+  // 获取给定矩形内的可用特征。结果是流式传输的，而不是一次性返回的
+  // （例如，在带有重复字段的响应消息中），因为矩形可能覆盖很大的区域并包含
+  // 大量特征。
   rpc ListFeatures(Rectangle) returns (stream Feature) {}
 
-  // A client-to-server streaming RPC.
+  // 客户端到服务器的流式 RPC。
   //
-  // Accepts a stream of Points on a route being traversed, returning a
-  // RouteSummary when traversal is completed.
+  // 接受在遍历的路线上一系列点，并在遍历完成时返回一个
+  // RouteSummary。
   rpc RecordRoute(stream Point) returns (RouteSummary) {}
 
-  // A Bidirectional streaming RPC.
+  // 双向流式 RPC。
   //
-  // Accepts a stream of RouteNotes sent while a route is being traversed,
-  // while receiving other RouteNotes (e.g. from other users).
+  // 接受在遍历路线上发送的一系列 RouteNotes，
+  // 同时接收其他 RouteNotes（例如来自其他用户）。
   rpc RouteChat(stream RouteNote) returns (stream RouteNote) {}
 }
 
-// Points are represented as latitude-longitude pairs in the E7 representation
-// (degrees multiplied by 10**7 and rounded to the nearest integer).
-// Latitudes should be in the range +/- 90 degrees and longitude should be in
-// the range +/- 180 degrees (inclusive).
+// 点表示为 E7 表示法中的纬度-经度对
+// （度数乘以 10**7 并四舍五入到最接近的整数）。
+// 纬度应在 +/- 90 度范围内， 经度应在
+// +/- 180 度范围内（包括端点）。
 message Point {
   int32 latitude = 1;
   int32 longitude = 2;
 }
 
-// A latitude-longitude rectangle, represented as two diagonally opposite
-// points "lo" and "hi".
+// 一个纬度-经度矩形，表示为两个对角相对的点 "lo" 和 "hi"。
 message Rectangle {
-  // One corner of the rectangle.
+  // 矩形的一个角。
   Point lo = 1;
 
-  // The other corner of the rectangle.
+  // 矩形的另一个角。
   Point hi = 2;
 }
 
-// A feature names something at a given point.
+// 特征是在给定点命名的某物。
 //
-// If a feature could not be named, the name is empty.
+// 如果无法命名特征，则名称为空。
 message Feature {
-  // The name of the feature.
+  // 特征的名称。
   string name = 1;
 
-  // The point where the feature is detected.
+  // 检测到特征的点。
   Point location = 2;
 }
 
-// A RouteNote is a message sent while at a given point.
+// RouteNote 是在给定点发送的消息。
 message RouteNote {
-  // The location from which the message is sent.
+  // 发送消息的位置。
   Point location = 1;
 
-  // The message to be sent.
+  // 要发送的消息。
   string message = 2;
 }
 
-// A RouteSummary is received in response to a RecordRoute rpc.
+// RouteSummary 是在响应 RecordRoute rpc 时接收的。
 //
-// It contains the number of individual points received, the number of
-// detected features, and the total distance covered as the cumulative sum of
-// the distance between each point.
+// 它包含接收到的单个点的数量，检测到的特征的数量，以及
+// 作为每个点之间距离的累积和的总距离。
 message RouteSummary {
-  // The number of points received.
+  // 接收到的点的数量。
   int32 point_count = 1;
 
-  // The number of known features passed while traversing the route.
+  // 在遍历路线上经过的已知特征的数量。
   int32 feature_count = 2;
 
-  // The distance covered in metres.
+  // 覆盖的距离（米）。
   int32 distance = 3;
 
-  // The duration of the traversal in seconds.
+  // 遍历的持续时间（秒）。
   int32 elapsed_time = 4;
 }

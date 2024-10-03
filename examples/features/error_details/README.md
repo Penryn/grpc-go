@@ -1,25 +1,27 @@
 # Description
 
-This example demonstrates the use of status details in grpc errors.
+此示例演示了在 grpc 错误中使用状态详细信息。
 
-# Run the sample code
+# 运行示例代码
 
-Run the server:
+运行服务器：
 
 ```sh
 $ go run ./server/main.go
 ```
-Then run the client in another terminal:
+
+然后在另一个终端中运行客户端：
 
 ```sh
 $ go run ./client/main.go
 ```
 
-It should succeed and print the greeting it received from the server.
-Then run the client again:
+它应该成功并打印从服务器收到的问候语。
+然后再次运行客户端：
 
 ```sh
 $ go run ./client/main.go
 ```
 
-This time, it should fail by printing error status details that it received from the server.
+这次，它应该通过打印从服务器收到的错误状态详细信息而失败。
+

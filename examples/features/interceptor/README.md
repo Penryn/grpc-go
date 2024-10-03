@@ -1,12 +1,8 @@
 # Interceptor
 
-gRPC provides simple APIs to implement and install interceptors on a per
-ClientConn/Server basis. Interceptors act as a layer between the application and
-gRPC and can be used to observe or control the behavior of gRPC. Interceptors
-can be used for logging, authentication/authorization, metrics collection, and
-other functionality that is shared across RPCs.
+gRPC 提供了简单的 API 来在每个 ClientConn/Server 基础上实现和安装拦截器。拦截器会拦截每个 RPC 调用的执行。用户可以使用拦截器来进行日志记录、身份验证/授权、指标收集以及许多其他可以跨 RPC 共享的功能。
 
-## Try it
+## 试一试
 
 ```
 go run server/main.go
@@ -16,104 +12,53 @@ go run server/main.go
 go run client/main.go
 ```
 
-## Explanation
+## 解释
 
-gRPC has separate interceptors for unary RPCs and streaming RPCs. See the
-[gRPC docs](https://grpc.io/docs/guides/concepts.html#rpc-life-cycle) for an
-explanation about unary and streaming RPCs. Both the client and the server have
-their own types of unary and stream interceptors. Thus, there are four different
-types of interceptors in total.
+在 gRPC 中，拦截器可以根据它们拦截的 RPC 调用类型分为两类。第一类是 **一元拦截器**，它拦截一元 RPC 调用。另一类是 **流拦截器**，它处理流式 RPC 调用。有关一元 RPC 和流式 RPC 的解释，请参见[这里](https://grpc.io/docs/guides/concepts.html#rpc-life-cycle)。客户端和服务器各自有自己的类型的一元和流拦截器。因此，gRPC 中总共有四种不同类型的拦截器。
 
-### Client-side
+### 客户端
 
-#### Unary Interceptor
+#### 一元拦截器
 
-The type for client-side unary interceptors is
-[`UnaryClientInterceptor`](https://godoc.org/google.golang.org/grpc#UnaryClientInterceptor).
-It is essentially a function type with signature: `func(ctx context.Context,
-method string, req, reply interface{}, cc *ClientConn, invoker UnaryInvoker,
-opts ...CallOption) error`. Unary interceptor implementations can usually be
-divided into three parts: pre-processing, invoking the RPC method, and
-post-processing.
+[`UnaryClientInterceptor`](https://godoc.org/google.golang.org/grpc#UnaryClientInterceptor) 是客户端一元拦截器的类型。它本质上是一种函数类型，签名为：`func(ctx context.Context, method string, req, reply interface{}, cc *ClientConn, invoker UnaryInvoker, opts ...CallOption) error`。一元拦截器的实现通常可以分为三个部分：预处理、调用 RPC 方法和后处理。
 
-For pre-processing, users can get info about the current RPC call by examining
-the args passed in. The args include the RPC context, method string, request to
-be sent, and the CallOptions configured. With this info, users can even modify
-the RPC call. For instance, in the example, we examine the list of CallOptions
-and check if the call credentials have been configured. If not, the interceptor
-configures the RPC call to use oauth2 with a token "some-secret-token" as a
-fallback. In our example, we intentionally omit configuring the per RPC
-credential to resort to the fallback.
+在预处理中，用户可以通过检查传入的参数获取当前 RPC 调用的信息，例如 RPC 上下文、方法字符串、要发送的请求和配置的 CallOptions。通过这些信息，用户甚至可以修改 RPC 调用。例如，在示例中，我们检查 CallOptions 列表，看看是否配置了调用凭证。如果没有，则配置它以使用令牌 "some-secret-token" 的 oauth2 作为后备。在我们的示例中，我们故意省略配置每个 RPC 凭证以求后备。
 
-After pre-processing, users can invoke the RPC call by calling the `invoker`.
+预处理完成后，用户可以通过调用 `invoker` 来调用 RPC 调用。
 
-Once the invoker returns, users can post-process the RPC call. This usually
-involves dealing with the returned reply and error. In the example, we log the
-RPC timing and error info.
+一旦调用者返回回复和错误，用户可以对 RPC 调用进行后处理。通常，这是处理返回的回复和错误。在示例中，我们记录了 RPC 的时间和错误信息。
 
-To install a unary interceptor on a ClientConn, configure `Dial` with the
-[`WithUnaryInterceptor`](https://godoc.org/google.golang.org/grpc#WithUnaryInterceptor)
-`DialOption`.
+要在 ClientConn 上安装一元拦截器，请使用 `DialOption` 配置 `Dial`，即 [`WithUnaryInterceptor`](https://godoc.org/google.golang.org/grpc#WithUnaryInterceptor)。
 
-#### Stream Interceptor
+#### 流拦截器
 
-The type for client-side stream interceptors is
-[`StreamClientInterceptor`](https://godoc.org/google.golang.org/grpc#StreamClientInterceptor).
-It is a function type with signature: `func(ctx context.Context, desc
-*StreamDesc, cc *ClientConn, method string, streamer Streamer, opts
-...CallOption) (ClientStream, error)`. An implementation of a stream interceptor
-usually includes pre-processing, and stream operation interception.
+[`StreamClientInterceptor`](https://godoc.org/google.golang.org/grpc#StreamClientInterceptor) 是客户端流拦截器的类型。它是一种函数类型，签名为：`func(ctx context.Context, desc *StreamDesc, cc *ClientConn, method string, streamer Streamer, opts ...CallOption) (ClientStream, error)`。流拦截器的实现通常包括预处理和流操作拦截。
 
-The pre-processing is similar to unary interceptors.
+对于预处理，它类似于一元拦截器。
 
-However, rather than invoking the RPC method followed by post-processing, stream
-interceptors intercept the users' operations on the stream. The interceptor
-first calls the passed-in `streamer` to get a `ClientStream`, and then wraps the
-`ClientStream` while overloading its methods with the interception logic.
-Finally, the interceptor returns the wrapped `ClientStream` to user to operate
-on.
+然而，与在之后进行 RPC 方法调用和后处理不同，流拦截器拦截用户对流的操作。首先，拦截器调用传入的 `streamer` 以获取 `ClientStream`，然后包装 `ClientStream` 并通过拦截逻辑重载其方法。最后，拦截器返回包装的 `ClientStream` 供用户操作。
 
-In the example, we define a new struct `wrappedStream`, which embeds a
-`ClientStream`. We then implement (overload) the `SendMsg` and `RecvMsg` methods
-on `wrappedStream` to intercept these two operations on the embedded
-`ClientStream`. In the example, we log the message type info and time info for
-interception purpose.
+在示例中，我们定义了一个新的结构 `wrappedStream`，它嵌入了一个 `ClientStream`。然后，我们在 `wrappedStream` 上实现（重载）`SendMsg` 和 `RecvMsg` 方法，以拦截这些对嵌入的 `ClientStream` 的操作。在示例中，我们记录了消息类型信息和时间信息以进行拦截。
 
-To install a stream interceptor for a ClientConn, configure `Dial` with the
-[`WithStreamInterceptor`](https://godoc.org/google.golang.org/grpc#WithStreamInterceptor)
-`DialOption`.
+要为 ClientConn 安装流拦截器，请使用 `DialOption` 配置 `Dial`，即 [`WithStreamInterceptor`](https://godoc.org/google.golang.org/grpc#WithStreamInterceptor)。
 
-### Server-side
+### 服务器端
 
-Server side interceptors are similar to client side interceptors, with slightly
-different information provided as args.
+服务器端拦截器类似于客户端拦截器，但提供的信息略有不同。
 
-#### Unary Interceptor
+#### 一元拦截器
 
-The type for server-side unary interceptors is
-[`UnaryServerInterceptor`](https://godoc.org/google.golang.org/grpc#UnaryServerInterceptor).
-It is a function type with signature: `func(ctx context.Context, req
-interface{}, info *UnaryServerInfo, handler UnaryHandler) (resp interface{}, err
-error)`.
+[`UnaryServerInterceptor`](https://godoc.org/google.golang.org/grpc#UnaryServerInterceptor) 是服务器端一元拦截器的类型。它是一种函数类型，签名为：`func(ctx context.Context, req interface{}, info *UnaryServerInfo, handler UnaryHandler) (resp interface{}, err error)`。
 
-Refer to the client-side unary interceptor section for a detailed implementation
-and explanation.
+有关详细的实现解释，请参阅客户端一元拦截器部分。
 
-To install a unary interceptor on a Server, configure `NewServer` with the
-[`UnaryInterceptor`](https://godoc.org/google.golang.org/grpc#UnaryInterceptor)
-`ServerOption`.
+要为服务器安装一元拦截器，请使用 `ServerOption` 配置 `NewServer`，即 [`UnaryInterceptor`](https://godoc.org/google.golang.org/grpc#UnaryInterceptor)。
 
-#### Stream Interceptor
+#### 流拦截器
 
-The type for server-side stream interceptors is
-[`StreamServerInterceptor`](https://godoc.org/google.golang.org/grpc#StreamServerInterceptor).
-It is a function type with the signature: `func(srv interface{}, ss
-ServerStream, info *StreamServerInfo, handler StreamHandler) error`.
+[`StreamServerInterceptor`](https://godoc.org/google.golang.org/grpc#StreamServerInterceptor) 是服务器端流拦截器的类型。它是一种函数类型，签名为：`func(srv interface{}, ss ServerStream, info *StreamServerInfo, handler StreamHandler) error`。
 
-Refer to the client-side stream interceptor section for a detailed
-implementation and explanation.
+有关详细的实现解释，请参阅客户端流拦截器部分。
 
-To install a stream interceptor on a Server, configure `NewServer` with the
-[`StreamInterceptor`](https://godoc.org/google.golang.org/grpc#StreamInterceptor)
-`ServerOption`.
+要为服务器安装流拦截器，请使用 `ServerOption` 配置 `NewServer`，即 [`StreamInterceptor`](https://godoc.org/google.golang.org/grpc#StreamInterceptor)。
 

@@ -1,11 +1,12 @@
 # Wait for ready example
 
-This example shows how to enable "wait for ready" in RPC calls.
+此示例展示了如何在 RPC 调用中启用“等待就绪”。
 
-This code starts a server with a 2 seconds delay. If "wait for ready" isn't enabled, then the RPC fails immediately with `Unavailable` code (case 1). If "wait for ready" is enabled, then the RPC waits for the server. If context dies before the server is available, then it fails with `DeadlineExceeded` (case 3). Otherwise it succeeds (case 2).
+此代码启动一个延迟 2 秒的服务器。如果未启用“等待就绪”，则 RPC 会立即失败并返回 `Unavailable` 代码（情况 1）。如果启用了“等待就绪”，则 RPC 会等待服务器。如果在服务器可用之前上下文失效，则会返回 `DeadlineExceeded` 失败（情况 3）。否则，它会成功（情况 2）。
 
-## Run the example
+## 运行示例
 
 ```
 go run main.go
 ```
+

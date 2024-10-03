@@ -1,14 +1,9 @@
 # Authentication
+在 gRPC 中，认证被抽象为 [`credentials.PerRPCCredentials`](https://godoc.org/google.golang.org/grpc/credentials#PerRPCCredentials)。它通常也包含授权。用户可以在每个连接或每个调用的基础上进行配置。
 
-In grpc, authentication is abstracted as
-[`credentials.PerRPCCredentials`](https://godoc.org/google.golang.org/grpc/credentials#PerRPCCredentials).
-It usually also encompasses authorization. Users can configure it on a
-per-connection basis or a per-call basis.
+当前的认证示例包括一个使用 OAuth2 与 gRPC 的示例。
 
-The example for authentication currently includes an example for using oauth2
-with grpc.
-
-## Try it
+## 试用
 
 ```
 go run server/main.go
@@ -18,45 +13,24 @@ go run server/main.go
 go run client/main.go
 ```
 
-## Explanation
+## 解释
 
 ### OAuth2
 
-OAuth 2.0 Protocol is a widely used authentication and authorization mechanism
-nowadays. And grpc provides convenient APIs to configure OAuth to use with grpc.
-Please refer to the godoc:
-https://godoc.org/google.golang.org/grpc/credentials/oauth for details.
+OAuth 2.0 协议是当今广泛使用的认证和授权机制。gRPC 提供了方便的 API 来配置 OAuth 以与 gRPC 一起使用。详情请参考 godoc：https://godoc.org/google.golang.org/grpc/credentials/oauth。
 
-#### Client
+#### 客户端
 
-On client side, users should first get a valid oauth token, and then initialize a
-[`oauth.TokenSource`](https://godoc.org/google.golang.org/grpc/credentials/oauth#TokenSource)
-which implements `credentials.PerRPCCredentials`. Next, if user wants to
-apply a single OAuth token for all RPC calls on the same connection, then
-configure grpc `Dial` with `DialOption`
-[`WithPerRPCCredentials`](https://godoc.org/google.golang.org/grpc#WithPerRPCCredentials).
-Or, if user wants to apply OAuth token per call, then configure the grpc RPC
-call with `CallOption`
-[`PerRPCCredentials`](https://godoc.org/google.golang.org/grpc#PerRPCCredentials).
+在客户端，用户应首先获取一个有效的 OAuth 令牌，然后初始化一个实现了 `credentials.PerRPCCredentials` 的 [`oauth.TokenSource`](https://godoc.org/google.golang.org/grpc/credentials/oauth#TokenSource)。接下来，如果用户希望对同一连接上的所有 RPC 调用应用单个 OAuth 令牌，则使用 `DialOption` [`WithPerRPCCredentials`](https://godoc.org/google.golang.org/grpc#WithPerRPCCredentials) 配置 gRPC `Dial`。或者，如果用户希望对每个调用应用 OAuth 令牌，则使用 `CallOption` [`PerRPCCredentials`](https://godoc.org/google.golang.org/grpc#PerRPCCredentials) 配置 gRPC RPC 调用。
 
-Note that OAuth requires the underlying transport to be secure (e.g. TLS, etc.)
+请注意，OAuth 需要底层传输是安全的（例如 TLS 等）。
 
-Inside grpc, the provided token is prefixed with the token type and a space, and
-is then attached to the metadata with the key "authorization".
+在 gRPC 内部，提供的令牌前缀为令牌类型和一个空格，然后附加到键为 "authorization" 的元数据中。
 
-### Server
+### 服务器
 
-On server side, users usually get the token and verify it inside an interceptor.
-To get the token, call
-[`metadata.FromIncomingContext`](https://godoc.org/google.golang.org/grpc/metadata#FromIncomingContext)
-on the given context. It returns the metadata map. Next, use the key
-"authorization" to get corresponding value, which is a slice of strings. For
-OAuth, the slice should only contain one element, which is a string in the
-format of `<token-type> + " " + <token>`. Users can easily get the token by
-parsing the string, and then verify the validity of it.
+在服务器端，用户通常在拦截器中获取令牌并验证它。要获取令牌，请在给定的上下文中调用 [`metadata.FromIncomingContext`](https://godoc.org/google.golang.org/grpc/metadata#FromIncomingContext)。它返回元数据映射。接下来，使用键 "authorization" 获取相应的值，这是一个字符串切片。对于 OAuth，该切片应仅包含一个元素，即格式为 `<token-type> + " " + <token>` 的字符串。用户可以通过解析字符串轻松获取令牌，然后验证其有效性。
 
-If the token is not valid, returns an error with error code
-`codes.Unauthenticated`.
+如果令牌无效，则返回错误代码 `codes.Unauthenticated` 的错误。
 
-If the token is valid, then invoke the method handler to start processing the
-RPC.
+如果令牌有效，则调用方法处理程序开始处理 RPC。

@@ -57,7 +57,7 @@ func makeRPCs(cc *grpc.ClientConn, n int) {
 
 func main() {
 	// "pick_first" is the default, so there's no need to set the load balancing policy.
-	pickfirstConn, err := grpc.NewClient(
+	pickfirstConn, err := grpc.Dial(
 		fmt.Sprintf("%s:///%s", exampleScheme, exampleServiceName),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -72,7 +72,7 @@ func main() {
 	fmt.Println()
 
 	// Make another ClientConn with round_robin policy.
-	roundrobinConn, err := grpc.NewClient(
+	roundrobinConn, err := grpc.Dial(
 		fmt.Sprintf("%s:///%s", exampleScheme, exampleServiceName),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"round_robin":{}}]}`), // This sets the initial balancing policy.
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -91,7 +91,7 @@ func main() {
 
 type exampleResolverBuilder struct{}
 
-func (*exampleResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, _ resolver.BuildOptions) (resolver.Resolver, error) {
+func (*exampleResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
 	r := &exampleResolver{
 		target: target,
 		cc:     cc,
@@ -118,8 +118,8 @@ func (r *exampleResolver) start() {
 	}
 	r.cc.UpdateState(resolver.State{Addresses: addrs})
 }
-func (*exampleResolver) ResolveNow(resolver.ResolveNowOptions) {}
-func (*exampleResolver) Close()                                {}
+func (*exampleResolver) ResolveNow(o resolver.ResolveNowOptions) {}
+func (*exampleResolver) Close()                                  {}
 
 func init() {
 	resolver.Register(&exampleResolverBuilder{})

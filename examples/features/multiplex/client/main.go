@@ -59,7 +59,7 @@ func callUnaryEcho(client ecpb.EchoClient, message string) {
 func main() {
 	flag.Parse()
 	// Set up a connection to the server.
-	conn, err := grpc.NewClient(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -72,7 +72,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("--- calling routeguide.RouteGuide/GetFeature ---")
-	// Make a routeguide client with the same ClientConn.
+	// Make a routeguild client with the same ClientConn.
 	rgc := ecpb.NewEchoClient(conn)
 	callUnaryEcho(rgc, "this is examples/multiplex")
 }

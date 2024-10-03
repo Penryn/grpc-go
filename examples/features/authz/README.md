@@ -1,75 +1,29 @@
 # RBAC authorization
 
-This example uses the `StaticInterceptor` and `FileWatcherInterceptor` from the
-`google.golang.org/grpc/authz` package. It uses a header based RBAC policy to
-match each gRPC method to a required role. For simplicity, the context is
-injected with mock metadata which includes the required roles, but this should
-be fetched from an appropriate service based on the authenticated context.
+此示例使用 `google.golang.org/grpc/authz` 包中的 `StaticInterceptor`。它使用基于头部的 RBAC 策略将每个 gRPC 方法匹配到所需的角色。为简单起见，context 中注入了包含所需角色的模拟元数据，但这些数据应根据经过身份验证的 context 从适当的服务中获取。
 
-## Try it
+## 试一试
 
-Server is expected to require the following roles on an authenticated user to
-authorize usage of these methods:
+服务器要求经过身份验证的用户具有以下角色才能授权使用这些方法：
 
-- `UnaryEcho` requires the role `UNARY_ECHO:W`
-- `BidirectionalStreamingEcho` requires the role `STREAM_ECHO:RW`
+- `UnaryEcho` 需要角色 `UNARY_ECHO:W`
+- `BidirectionalStreamingEcho` 需要角色 `STREAM_ECHO:RW`
 
-Upon receiving a request, the server first checks that a token was supplied,
-decodes it and checks that a secret is correctly set (hardcoded to
-`super-secret` for simplicity, this should use a proper ID provider in
-production).
+收到请求后，服务器首先检查是否提供了令牌，解码它并检查是否正确设置了密钥（为简单起见，硬编码为 `super-secret`，在生产环境中应使用适当的 ID 提供者）。
 
-If the above is successful, it uses the username in the token to set appropriate
-roles (hardcoded to the 2 required roles above if the username matches
-`super-user` for simplicity, these roles should be supplied externally as well).
+如果上述步骤成功，它会使用令牌中的用户名来设置适当的角色（为简单起见，如果用户名匹配 `super-user`，则硬编码为上述两个所需角色，这些角色也应从外部提供）。
 
-### Authorization with static policy
-
-Start the server with:
+启动服务器：
 
 ```
 go run server/main.go
 ```
 
-The client implementation shows how using a valid token (setting username and
-secret) with each of the endpoints will return successfully. It also exemplifies
-how using a bad token will result in `codes.PermissionDenied` being returned
-from the service.
+客户端实现展示了如何使用有效令牌（设置用户名和密钥）调用每个端点将成功返回。它还示例了使用错误令牌将导致服务返回 `codes.PermissionDenied`。
 
-Start the client with:
+启动客户端：
 
 ```
 go run client/main.go
 ```
 
-### Authorization by watching a policy file
-
-The server accepts an optional `--authz-option filewatcher` flag to set up
-authorization policy by reading a [policy
-file](/examples/data/rbac/policy.json), and to look for update on the policy
-file every 100 millisecond. Having `GRPC_GO_LOG_SEVERITY_LEVEL` environment
-variable set to `info` will log out the reload activity of the policy every time
-a file update is detected.
-
-Start the server with:
-
-```
-GRPC_GO_LOG_SEVERITY_LEVEL=info go run server/main.go --authz-option filewatcher
-```
-
-Start the client with:
-
-```
-go run client/main.go
-```
-
-The client will first hit `codes.PermissionDenied` error when invoking
-`UnaryEcho` although a legitimate username (`super-user`) is associated with the
-RPC. This is because the policy file has an intentional glitch (falsely asks for
-role `UNARY_ECHO:RW`).
-
-While the server is still running, edit and save the policy file to replace
-`UNARY_ECHO:RW` with the correct role `UNARY_ECHO:W` (policy reload activity
-should now be found in server logs). This time when the client is started again
-with the command above, it will be able to get responses just as in the
-static-policy example.

@@ -44,7 +44,7 @@ func main() {
 
 	// Set up a connection to the server.  Configure to use our custom LB
 	// policy which will receive all the ORCA load reports.
-	conn, err := grpc.NewClient(*addr,
+	conn, err := grpc.Dial(*addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingConfig": [{"orca_example":{}}]}`),
 	)
@@ -59,7 +59,7 @@ func main() {
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {
 		func() {
-			// Use an anonymous function to ensure context cancellation via defer.
+			// Use an anonymous function to ensure context cancelation via defer.
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 			if _, err := c.UnaryEcho(ctx, &pb.EchoRequest{Message: "test echo message"}); err != nil {
@@ -82,7 +82,7 @@ func init() {
 type orcaLBBuilder struct{}
 
 func (orcaLBBuilder) Name() string { return "orca_example" }
-func (orcaLBBuilder) Build(cc balancer.ClientConn, _ balancer.BuildOptions) balancer.Balancer {
+func (orcaLBBuilder) Build(cc balancer.ClientConn, opts balancer.BuildOptions) balancer.Balancer {
 	return &orcaLB{cc: cc}
 }
 
@@ -97,7 +97,14 @@ type orcaLB struct {
 }
 
 func (o *orcaLB) UpdateClientConnState(ccs balancer.ClientConnState) error {
+	// We assume only one update, ever, containing exactly one address, given
+	// the use of the "passthrough" (default) name resolver.
+
 	addrs := ccs.ResolverState.Addresses
+	if len(addrs) != 1 {
+		return fmt.Errorf("orcaLB: expected 1 address; received: %v", addrs)
+	}
+
 	// Create one SubConn for the address and connect it.
 	var sc balancer.SubConn
 	sc, err := o.cc.NewSubConn(addrs, balancer.NewSubConnOptions{
@@ -124,7 +131,7 @@ func (o *orcaLB) UpdateClientConnState(ccs balancer.ClientConnState) error {
 func (o *orcaLB) ResolverError(error) {}
 
 // TODO: unused; remove when no longer required.
-func (o *orcaLB) UpdateSubConnState(balancer.SubConn, balancer.SubConnState) {}
+func (o *orcaLB) UpdateSubConnState(sc balancer.SubConn, scs balancer.SubConnState) {}
 
 func (o *orcaLB) Close() {}
 
@@ -132,7 +139,7 @@ type picker struct {
 	sc balancer.SubConn
 }
 
-func (p *picker) Pick(balancer.PickInfo) (balancer.PickResult, error) {
+func (p *picker) Pick(info balancer.PickInfo) (balancer.PickResult, error) {
 	return balancer.PickResult{
 		SubConn: p.sc,
 		Done: func(di balancer.DoneInfo) {

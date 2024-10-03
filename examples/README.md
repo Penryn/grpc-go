@@ -1,10 +1,11 @@
 # Examples
 
-The following examples are provided to help users get started with gRPC-Go.
-They are arranged as follows:
+以下示例旨在帮助用户开始使用 gRPC-Go。
+它们的排列如下：
 
-* `helloworld` - a simple example showing a basic client and server
-* `routeguide` - a more complicated example showing different types of streaming RPCs
-* `features` - a collection of examples, each focused on a single gRPC feature
+* `helloworld` - 一个展示基本客户端和服务器的简单示例
+* `routeguide` - 一个展示不同类型流式 RPC 的复杂示例
+* `features` - 一组示例，每个示例都专注于单个 gRPC 功能
 
-`data` is a directory containing data used by the examples, e.g. TLS certificates.
+`data` 是一个包含示例使用的数据的目录，例如 TLS 证书。
+

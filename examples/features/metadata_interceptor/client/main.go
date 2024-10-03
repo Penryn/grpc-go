@@ -29,7 +29,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 
 	pb "google.golang.org/grpc/examples/features/proto/echo"
 )
@@ -37,22 +36,11 @@ import (
 var addr = flag.String("addr", "localhost:50051", "the address to connect to")
 
 func callUnaryEcho(ctx context.Context, client pb.EchoClient) {
-	var header, trailer metadata.MD
-	resp, err := client.UnaryEcho(ctx, &pb.EchoRequest{Message: "hello world"}, grpc.Header(&header), grpc.Trailer(&trailer))
+	resp, err := client.UnaryEcho(ctx, &pb.EchoRequest{Message: "hello world"})
 	if err != nil {
 		log.Fatalf("UnaryEcho: %v", err)
 	}
 	fmt.Println("UnaryEcho: ", resp.Message)
-
-	fmt.Println("Received headers:")
-	for k, v := range header {
-		fmt.Printf("%s: %v\n", k, v)
-	}
-
-	fmt.Println("Received trailers:")
-	for k, v := range trailer {
-		fmt.Printf("%s: %v\n", k, v)
-	}
 }
 
 func callBidiStreamingEcho(ctx context.Context, client pb.EchoClient) {
@@ -76,29 +64,14 @@ func callBidiStreamingEcho(ctx context.Context, client pb.EchoClient) {
 		}
 		fmt.Println("BidiStreaming Echo: ", resp.Message)
 	}
-
-	header, err := c.Header()
-	if err != nil {
-		log.Fatalf("Receiving headers: %v", err)
-	}
-	fmt.Println("Received headers:")
-	for k, v := range header {
-		fmt.Printf("%s: %v\n", k, v)
-	}
-
-	trailer := c.Trailer()
-	fmt.Println("Received tailers:")
-	for k, v := range trailer {
-		fmt.Printf("%s: %v\n", k, v)
-	}
 }
 
 func main() {
 	flag.Parse()
 
-	conn, err := grpc.NewClient(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("grpc.NewClient(%q): %v", *addr, err)
+		log.Fatalf("grpc.Dial(%q): %v", *addr, err)
 	}
 	defer conn.Close()
 

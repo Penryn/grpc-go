@@ -1,64 +1,61 @@
 # Retry
 
-This example shows how to enable and configure retry on gRPC clients.
+这个示例展示了如何在 gRPC 客户端上启用和配置重试。
 
-## Documentation
+## 文档
 
-[gRFC for client-side retry support](https://github.com/grpc/proposal/blob/master/A6-client-retries.md)
+[客户端重试支持的 gRFC](https://github.com/grpc/proposal/blob/master/A6-client-retries.md)
 
-## Try it
+## 试一试
 
-This example includes a service implementation that fails requests three times with status
-code `Unavailable`, then passes the fourth.  The client is configured to make four retry attempts
-when receiving an `Unavailable` status code.
+这个示例包括一个服务实现，该实现会在前三次请求时返回 `Unavailable` 状态码，然后在第四次请求时通过。客户端被配置为在收到 `Unavailable` 状态码时进行四次重试尝试。
 
-First start the server:
+首先启动服务器：
 
 ```bash
 go run server/main.go
 ```
 
-Then run the client:
+然后运行客户端：
 
 ```bash
 go run client/main.go
 ```
 
-## Usage
+## 用法
 
-### Define your retry policy
+### 定义你的重试策略
 
-Retry is enabled via the service config, which can be provided by the name resolver or
-a DialOption (described below).  In the below config, we set retry policy for the
-"grpc.example.echo.Echo" method.
+重试通过服务配置启用，可以由名称解析器或 DialOption 提供（如下所述）。在下面的配置中，我们为 "grpc.example.echo.Echo" 方法设置了重试策略。
 
-MaxAttempts: how many times to attempt the RPC before failing.
-InitialBackoff, MaxBackoff, BackoffMultiplier: configures delay between attempts.
-RetryableStatusCodes: Retry only when receiving these status codes.
+MaxAttempts：在失败前尝试 RPC 的次数。
+InitialBackoff, MaxBackoff, BackoffMultiplier：配置尝试之间的延迟。
+RetryableStatusCodes：仅在收到这些状态码时重试。
 
 ```go
-        var retryPolicy = `{
-            "methodConfig": [{
-                // config per method or all methods under service
-                "name": [{"service": "grpc.examples.echo.Echo"}],
+    var retryPolicy = `{
+        "methodConfig": [{
+        // 每个方法或服务下所有方法的配置
+        "name": [{"service": "grpc.examples.echo.Echo"}],
+        "waitForReady": true,
 
-                "retryPolicy": {
-                    "MaxAttempts": 4,
-                    "InitialBackoff": ".01s",
-                    "MaxBackoff": ".01s",
-                    "BackoffMultiplier": 1.0,
-                    // this value is grpc code
-                    "RetryableStatusCodes": [ "UNAVAILABLE" ]
-                }
-            }]
-        }`
+        "retryPolicy": {
+            "MaxAttempts": 4,
+            "InitialBackoff": ".01s",
+            "MaxBackoff": ".01s",
+            "BackoffMultiplier": 1.0,
+            // 这个值是 grpc 状态码
+            "RetryableStatusCodes": [ "UNAVAILABLE" ]
+        }
+        }]
+    }`
 ```
 
-### Providing the retry policy as a DialOption
+### 作为 DialOption 提供重试策略
 
-To use the above service config, pass it with `grpc.WithDefaultServiceConfig` to
-`grpc.NewClient`.
+要使用上述服务配置，请将其与 `grpc.WithDefaultServiceConfig` 一起传递给 `grpc.Dial`。
 
 ```go
-conn, err := grpc.NewClient(ctx,grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultServiceConfig(retryPolicy))
+conn, err := grpc.Dial(ctx,grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultServiceConfig(retryPolicy))
 ```
+

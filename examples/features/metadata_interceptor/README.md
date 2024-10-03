@@ -1,11 +1,11 @@
 # Metadata interceptor example
 
-This example shows how to update metadata from unary and streaming interceptors on the server.
-Please see
+这个示例展示了如何从服务器上的一元和流拦截器更新元数据。
+请参阅
 [grpc-metadata.md](https://github.com/grpc/grpc-go/blob/master/Documentation/grpc-metadata.md)
-for more information.
+获取更多信息。
 
-## Try it
+## 试一试
 
 ```
 go run server/main.go
@@ -15,36 +15,30 @@ go run server/main.go
 go run client/main.go
 ```
 
-## Explanation
+## 解释
 
-#### Unary interceptor
+#### 一元拦截器
 
-The interceptor can read existing metadata from the RPC context passed to it.
-Since Go contexts are immutable, the interceptor will have to create a new context
-with updated metadata and pass it to the provided handler.
+拦截器可以从传递给它的 RPC 上下文中读取现有的元数据。
+由于 Go 上下文是不可变的，拦截器必须创建一个带有更新元数据的新上下文并将其传递给提供的处理程序。
 
 ```go
 func SomeInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-    // Get the incoming metadata from the RPC context, and add a new
-    // key-value pair to it.
+    // 从 RPC 上下文中获取传入的元数据，并添加一个新的键值对。
     md, ok := metadata.FromIncomingContext(ctx)
     md.Append("key1", "value1")
 
-    // Create a context with the new metadata and pass it to handler.
+    // 创建一个带有新元数据的上下文并将其传递给处理程序。
     ctx = metadata.NewIncomingContext(ctx, md)
     return handler(ctx, req)
 }
 ```
 
-#### Streaming interceptor
+#### 流拦截器
 
-`grpc.ServerStream` does not provide a way to modify its RPC context. The streaming
-interceptor therefore needs to implement the `grpc.ServerStream` interface and return
-a context with updated metadata.
+`grpc.ServerStream` 不提供修改其 RPC 上下文的方法。因此，流拦截器需要实现 `grpc.ServerStream` 接口并返回一个带有更新元数据的上下文。
 
-The easiest way to do this would be to create a type which embeds the `grpc.ServerStream`
-interface and overrides only the `Context()` method to return a context with updated
-metadata. The streaming interceptor would then pass this wrapped stream to the provided handler.
+最简单的方法是创建一个嵌入 `grpc.ServerStream` 接口的类型，并且只重写 `Context()` 方法以返回一个带有更新元数据的上下文。然后流拦截器将这个包装的流传递给提供的处理程序。
 
 ```go
 type wrappedStream struct {
@@ -57,14 +51,14 @@ func (s *wrappedStream) Context() context.Context {
 }
 
 func SomeStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-    // Get the incoming metadata from the RPC context, and add a new
-    // key-value pair to it.
+    // 从 RPC 上下文中获取传入的元数据，并添加一个新的键值对。
     md, ok := metadata.FromIncomingContext(ctx)
     md.Append("key1", "value1")
 
-    // Create a context with the new metadata and pass it to handler.
+    // 创建一个带有新元数据的上下文并将其传递给处理程序。
     ctx = metadata.NewIncomingContext(ctx, md)
 
     return handler(srv, &wrappedStream{ss, ctx})
 }
 ```
+
